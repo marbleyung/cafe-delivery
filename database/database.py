@@ -1,5 +1,4 @@
 import sqlite3 as sql
-import aiogram
 base = sql.connect('menu.db')
 cur = base.cursor()
 
@@ -16,6 +15,54 @@ def sql_add_dish(data):
         menu.commit()
         menu.close()
     return result
+
+def sql_get_menu():
+    menu = sql.connect('menu.db')
+    cursor = menu.cursor()
+    result = cursor.execute("SELECT name FROM menu").fetchall()
+    print(result)
+    menu.close()
+    return result
+
+
+def sql_get_advanced_menu():
+    menu = sql.connect('menu.db')
+    cursor = menu.cursor()
+    result = cursor.execute("SELECT category, name, description, price FROM menu").fetchall()
+    result = [' '.join(i) + '\n' for i in result]
+    result = '\n'.join(result)
+    menu.close()
+    return result
+
+
+def sql_select_dish(data):
+    menu = sql.connect('menu.db')
+    cursor = menu.cursor()
+    try:
+        x = cursor.execute('SELECT * from menu WHERE name = ?', (data,)).fetchone()
+        if not x is None:
+            result = "Елемент знайдено. Що редагуємо?"
+        else:
+            result = "Цієї страви нема в меню"
+    except :
+        result = "Цієї страви нема в меню"
+    finally:
+        menu.commit()
+        menu.close()
+    return result
+
+
+def sql_edit_dish(field, data1, data2):
+    menu = sql.connect('menu.db')
+    cursor = menu.cursor()
+    try:
+        cursor.execute(f'UPDATE menu SET {field} = ? WHERE {field} = ?', (data2, data1))
+        return 'Зроблено!'
+    except:
+        return 'Щось пішло не так...'
+    finally:
+        menu.commit()
+        menu.close()
 
 
 def sql_del_dish(data):
