@@ -1,4 +1,5 @@
 import sqlite3 as sql
+
 base = sql.connect('menu.db')
 cur = base.cursor()
 
@@ -15,6 +16,7 @@ def sql_add_dish(data):
         menu.commit()
         menu.close()
     return result
+
 
 def sql_get_menu():
     menu = sql.connect('menu.db')
@@ -44,7 +46,7 @@ def sql_select_dish(data):
             result = "Елемент знайдено. Що редагуємо?"
         else:
             result = "Цієї страви нема в меню"
-    except :
+    except:
         result = "Цієї страви нема в меню"
     finally:
         menu.commit()
@@ -56,13 +58,14 @@ def sql_edit_dish(field, data1, data2):
     menu = sql.connect('menu.db')
     cursor = menu.cursor()
     try:
-        cursor.execute(f'UPDATE menu SET {field} = ? WHERE {field} = ?', (data2, data1))
-        return 'Зроблено!'
+        cursor.execute(f'UPDATE menu SET {field} = ? WHERE name = ?', (data2, data1))
+        result = 'Done!'
     except:
-        return 'Щось пішло не так...'
+        result = 'Щось пішло не так...'
     finally:
         menu.commit()
         menu.close()
+    return result
 
 
 def sql_del_dish(data):
@@ -75,7 +78,7 @@ def sql_del_dish(data):
             result = 'Успішно видалено'
         else:
             result = "Цієї страви нема в меню"
-    except :
+    except:
         result = "Цієї страви нема в меню"
     finally:
         menu.commit()
@@ -101,10 +104,10 @@ def sql_select_user(data):
     users_db = sql.connect('users.db')
     cursor = users_db.cursor()
     try:
-        result = cursor.execute('SELECT * FROM users WHERE id = ?', (data, )).fetchone()
+        result = cursor.execute('SELECT * FROM users WHERE id = ?', (data,)).fetchone()
         if result is None:
             result = 'Помилка. Радше за все, ви не зареєстровані. Зареєструйтесь, будь ласка (/start)'
-    except:
+    except :
         result = 'Помилка. Радше за все, ви не зареєстровані. Зареєструйтесь, будь ласка (/start)'
     finally:
         users_db.close()
@@ -115,7 +118,7 @@ def sql_delete_user(data):
     users_db = sql.connect('users.db')
     cursor = users_db.cursor()
     try:
-        cursor.execute('DELETE FROM users WHERE id = ?', (data, ))
+        cursor.execute('DELETE FROM users WHERE id = ?', (data,))
         result = 'Ваш запис видалено'
     except:
         result = 'Помилка. Радше за все, ви не зареєстровані. Зареєструйтесь, будь ласка (/start)'

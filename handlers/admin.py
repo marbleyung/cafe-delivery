@@ -6,6 +6,7 @@ from environs import Env
 from database import database
 from keyboards.admin_kb import admin_keyboard, admin_back_keyboard, admin_edit_keyboard
 
+
 @dataclass
 class FSMadmin(StatesGroup):
     photo = State()
@@ -15,17 +16,12 @@ class FSMadmin(StatesGroup):
     price = State()
     name_to_delete = State()
 
-    select = State()
-    edit_name = State()
-    set_new_name = State()
-    edit_photo = State()
-    set_new_photo = State()
-    edit_category = State()
-    set_new_category = State()
-    edit_price = State()
-    set_new_price = State()
-    edit_description = State()
-    set_new_description = State()
+    select_in_db = State()
+    edit_text_element = State()
+    set_new_text_element = State()
+
+    select_in_db_photo = State()
+    set_new_photo_element = State()
 
 
 def _isadmin():
@@ -66,12 +62,42 @@ async def admin_load(callback):
 async def admin_edit(callback):
     await callback.message.edit_text(text="Введіть назву страви, яку потрібно змінити",
                                      reply_markup=admin_back_keyboard)
-    await FSMadmin.select.set()
+    await FSMadmin.select_in_db.set()
+
+
+async def admin_edit_photo(callback):
+    await callback.message.edit_text(text='Введіть назву страви, фото якої потрібно змінити',
+                                     reply_markup=admin_back_keyboard)
+    await FSMadmin.select_in_db_photo.set()
+
+
+async def select_dish_photo(message, state: FSMContext):
+    tmp = message.text.title()
+    await state.update_data(select_in_db_photo=tmp)
+    result = database.sql_select_dish(tmp)
+    if result == 'Елемент знайдено. Що редагуємо?':
+        await FSMadmin.next()
+        await message.answer(text="Елемент знайдено. Завантажте нове фото",
+                             reply_markup=admin_back_keyboard)
+    else:
+        await message.answer(text=result, reply_markup=admin_keyboard)
+        await state.finish()
+
+
+async def set_new_photo_element(message, state: FSMContext):
+    await state.update_data(set_new_photo_element=message.photo[0].file_id)
+    data = await state.get_data()
+    print(data)
+    result = database.sql_edit_dish('photo',
+                                    data['select_in_db_photo'],
+                                    data['set_new_photo_element'])
+    await message.answer(text=result, reply_markup=admin_keyboard)
+    await state.finish()
 
 
 async def select_dish(message, state: FSMContext):
     tmp = message.text.title()
-    await state.update_data(select=tmp)
+    await state.update_data(select_in_db=tmp)
     result = database.sql_select_dish(tmp)
     if result == 'Елемент знайдено. Що редагуємо?':
         await FSMadmin.next()
@@ -81,38 +107,37 @@ async def select_dish(message, state: FSMContext):
         await state.finish()
 
 
-async def edit_name(callback, state: FSMContext):
-    print(1)
-    await state.update_data(edit_name=True)
-    await callback.message.edit_text(text='Введіть нову назву', reply_markup=admin_back_keyboard)
+async def edit_text_element(callback, state: FSMContext):
+    await state.update_data(edit_text_element=callback.data.split('_')[1])
+    await callback.message.edit_text(text='Введіть нове значення', reply_markup=admin_back_keyboard)
     await callback.answer()
     await FSMadmin.next()
 
-async def set_new_name(message, state: FSMContext):
-    await state.update_data(set_new_name=message.text.title())
+
+async def set_new_text_element(message, state: FSMContext):
+    await state.update_data(set_new_text_element=message.text)
     data = await state.get_data()
-    result = database.sql_edit_dish('name', data['select'], data['set_new_name'])
+
+    tmp_category = data['edit_text_element']
+    tmp_name = data['set_new_text_element']
+    if tmp_category == 'name':
+        tmp_name = tmp_name.title()
+    elif tmp_category == 'category':
+        tmp_name = tmp_name.lower()
+    elif tmp_category == 'price':
+        tmp_name += ' UAH'
+    result = database.sql_edit_dish(data['edit_text_element'],
+                                    data['select_in_db'],
+                                    tmp_name)
     await message.answer(text=result, reply_markup=admin_keyboard)
     await state.finish()
 
-async def edit_price(callback, state: FSMContext):
-    await state.update_data(edit_price=True)
-    await callback.message.edit_text(text='Введіть нову ціну', reply_markup=admin_back_keyboard)
-    await callback.answer()
-    await FSMadmin.next()
-
-async def set_new_price(message, state: FSMContext):
-    await state.update_data(set_new_price=message.text.title())
-    data = await state.get_data()
-    result = database.sql_edit_dish('price', data['select'], data['set_new_price'])
-    await message.answer(text=result, reply_markup=admin_keyboard)
-    await state.finish()
 
 async def admin_delete(callback):
     await callback.message.edit_text(text='Якщо ви хочете видалити страву, введіть її назву\n'
-                         'Наприклад, Margherita для видалення відповідної піци,\n'
-                         'Quattro Formaggi для видалення відповідної піци тощо.\n',
-                         reply_markup=admin_back_keyboard)
+                                          'Наприклад, Margherita для видалення відповідної піци,\n'
+                                          'Quattro Formaggi для видалення відповідної піци тощо.\n',
+                                     reply_markup=admin_back_keyboard)
     await callback.answer()
     await FSMadmin.name_to_delete.set()
 
@@ -174,21 +199,22 @@ def register_admin_handlers(dp):
     dp.register_callback_query_handler(admin_get_menu, text='admin_get_menu')
     dp.register_callback_query_handler(admin_get_advanced_menu, text='admin_get_advanced_menu')
     dp.register_callback_query_handler(admin_load, text='admin_load')
-    dp.register_callback_query_handler(admin_edit, text='admin_edit')
     dp.register_callback_query_handler(admin_delete, text='admin_delete')
+    dp.register_callback_query_handler(admin_edit, text='admin_edit')
+    dp.register_callback_query_handler(admin_edit_photo, text='admin_edit_photo')
 
-    dp.register_message_handler(del_dish, state=FSMadmin.name_to_delete)
     dp.register_message_handler(load_photo, content_types=['photo'], state=FSMadmin.photo)
     dp.register_message_handler(load_category, state=FSMadmin.category)
     dp.register_message_handler(load_name, state=FSMadmin.name)
     dp.register_message_handler(load_description, state=FSMadmin.description)
     dp.register_message_handler(load_price, state=FSMadmin.price)
-    dp.register_message_handler(select_dish, state=FSMadmin.select)
+    dp.register_message_handler(del_dish, state=FSMadmin.name_to_delete)
+    dp.register_message_handler(select_dish, state=FSMadmin.select_in_db)
+    dp.register_callback_query_handler(edit_text_element, state=FSMadmin.edit_text_element)
+    dp.register_message_handler(set_new_text_element, state=FSMadmin.set_new_text_element)
+    dp.register_message_handler(select_dish_photo, state=FSMadmin.select_in_db_photo)
+    dp.register_message_handler(set_new_photo_element, content_types=['photo'],
+                                state=FSMadmin.set_new_photo_element)
 
-
-    dp.register_callback_query_handler(edit_name, text='edit_name', state=FSMadmin.edit_name)
-    dp.register_message_handler(set_new_name, state=FSMadmin.set_new_name)
-    dp.register_callback_query_handler(edit_price, text='edit_price', state=FSMadmin.edit_price)
-    dp.register_message_handler(set_new_price, state=FSMadmin.set_new_price)
     dp.register_callback_query_handler(admin_back, text='admin_back', state='*')
     dp.register_callback_query_handler(admin_quit, text='admin_quit', state="*")
