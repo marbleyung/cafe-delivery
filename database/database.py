@@ -3,7 +3,6 @@ import sqlite3 as sql
 base = sql.connect('menu.db')
 cur = base.cursor()
 
-
 def sql_add_dish(data):
     menu = sql.connect('menu.db')
     cursor = menu.cursor()
@@ -53,6 +52,21 @@ def sql_select_dish(data):
         menu.close()
     return result
 
+def sql_select_dish_with_data(data):
+    menu = sql.connect('menu.db')
+    cursor = menu.cursor()
+    try:
+        x = cursor.execute('SELECT * from menu WHERE name = ?', (data,)).fetchone()
+        if not x is None:
+            result = x
+        else:
+            result = "Цієї страви нема в меню"
+    except:
+        result = "Цієї страви нема в меню"
+    finally:
+        menu.commit()
+        menu.close()
+    return result
 
 def sql_edit_dish(field, data1, data2):
     menu = sql.connect('menu.db')

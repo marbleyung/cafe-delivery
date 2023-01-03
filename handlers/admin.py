@@ -87,7 +87,6 @@ async def select_dish_photo(message, state: FSMContext):
 async def set_new_photo_element(message, state: FSMContext):
     await state.update_data(set_new_photo_element=message.photo[0].file_id)
     data = await state.get_data()
-    print(data)
     result = database.sql_edit_dish('photo',
                                     data['select_in_db_photo'],
                                     data['set_new_photo_element'])
