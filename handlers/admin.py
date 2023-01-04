@@ -1,14 +1,14 @@
-from aiogram import types
+from aiogram import types, Bot
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from dataclasses import dataclass
 from environs import Env
 from database import database
 from keyboards.admin_kb import admin_keyboard, admin_back_keyboard, admin_edit_keyboard
-
-
+from asyncio import sleep
 @dataclass
 class FSMadmin(StatesGroup):
+    mass_message = State()
     photo = State()
     category = State()
     name = State()
@@ -29,6 +29,31 @@ def _isadmin():
     env.read_env(r'.env')
     admin_ids = env('ADMIN_IDS').split(',')
     return admin_ids
+
+
+async def send_message_to_everyone(message):
+    admin_ids = _isadmin()
+    if str(message.from_user.id) in admin_ids:
+        await message.answer(text='Введіть повідомлення, яке отримають всі користувачі',
+                             reply_markup=admin_back_keyboard)
+        await FSMadmin.mass_message.set()
+    else:
+        await message.answer(text='Упс, ця команда не для вас')
+
+
+async def mass_message(message, state: FSMContext):
+    await state.update_data(mass_message=message.text)
+    result = database.sql_mass_send()
+    env = Env()
+    env.read_env(r'C:\Users\snapk\PycharmProjects\Alpha\cafe_delievery_bot\.env')
+    bot = Bot(token=env('BOT_TOKEN'))
+    for i in result:
+        await bot.send_message(i, message.text)
+        await sleep(.05)
+
+    await bot.close()
+    await message.answer(text=f"Sent\n{message.text}", reply_markup=admin_keyboard)
+    await state.finish()
 
 
 async def load_admin_panel(message):
@@ -193,8 +218,15 @@ async def admin_quit(callback, state: FSMContext):
 
 
 def register_admin_handlers(dp):
-    dp.register_message_handler(load_admin_panel, commands=['admin'], state=None)
+    dp.register_message_handler(send_message_to_everyone, commands=['massmessage',
+                                                                    'mass_message',
+                                                                    'mass_dm',
+                                                                    'massdm',
+                                                                    'send_all',
+                                                                    'sendall'])
+    dp.register_message_handler(mass_message, state=FSMadmin.mass_message)
 
+    dp.register_message_handler(load_admin_panel, commands=['admin'], state=None)
     dp.register_callback_query_handler(admin_get_menu, text='admin_get_menu')
     dp.register_callback_query_handler(admin_get_advanced_menu, text='admin_get_advanced_menu')
     dp.register_callback_query_handler(admin_load, text='admin_load')

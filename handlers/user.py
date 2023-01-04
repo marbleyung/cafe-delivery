@@ -1,4 +1,8 @@
 import sqlite3 as sql
+from aiogram import Bot
+from aiogram.types import LabeledPrice
+
+from environs import Env
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from database.database import cur, sql_select_user, sql_delete_user
@@ -7,6 +11,8 @@ from keyboards import menu_kb as mkb
 from dataclasses import dataclass
 from services import order_process
 from database import database
+from handlers.admin import _isadmin
+
 
 @dataclass
 class Order(StatesGroup):
@@ -19,6 +25,7 @@ class Order(StatesGroup):
     delivery_time = State()
     payment_type = State()
     details = State()
+    payed = State()
 
 
 async def process_help_command(message, state: FSMContext):
@@ -26,21 +33,25 @@ async def process_help_command(message, state: FSMContext):
                          f"Також є зручне меню зліва, в якому наявні всі команди")
     await state.finish()
 
+
 async def process_cart_command(message, state: FSMContext):
     result = order_process.check_order(message.from_user.id)
     await message.answer(text=result, reply_markup=mkb.make_order_kb)
     await state.finish()
 
+
 async def process_quit_command(message, state: FSMContext):
     await message.answer("До побачення!")
     await state.finish()
+
 
 async def process_me_command(message, state: FSMContext):
     await state.finish()
     data = message.from_user.id
     result = sql_select_user(data)
     if isinstance(result, tuple):
-        await message.answer(text=f"Ваше ім'я: {result[1]}\nВаш телефон: {result[2]}\nВаша адреса: {result[3]}")
+        await message.answer(text=f"Ваше ім'я: {result[1]}\nВаш телефон: {result[2]}\n"
+                                  f"Ваша адреса: {result[3]}")
     else:
         await message.answer(text=result)
 
@@ -69,7 +80,7 @@ async def process_about_command(message, state: FSMContext):
 
 async def process_pizza_press(callback):
     await callback.message.edit_text(text='Оберіть піццу (натисніть, щоб дізнатись більше)',
-        reply_markup=mkb.pizza_kb)
+                                     reply_markup=mkb.pizza_kb)
     await callback.answer()
 
 
@@ -79,8 +90,8 @@ async def process_choice_pizza(callback, state: FSMContext):
     await Order.pizza.set()
     await state.update_data(pizza=chosen_pizza)
     base = sql.connect('menu.db')
-    cur = base.cursor()
-    pizza_info = cur.execute("SELECT * FROM menu WHERE name = ?", (chosen_pizza,)).fetchone()
+    curs = base.cursor()
+    pizza_info = curs.execute("SELECT * FROM menu WHERE name = ?", (chosen_pizza,)).fetchone()
     await callback.message.answer_photo(pizza_info[0])
     await callback.message.answer(text=f'{pizza_info[2]}\n{pizza_info[3]}\n{pizza_info[-1]}',
                                   reply_markup=mkb.add_or_back_kb)
@@ -107,6 +118,7 @@ async def process_add_to_pizza(callback, state: FSMContext):
     await callback.answer(text=result)
     await state.finish()
 
+
 async def process_del_from_pizza(callback, state: FSMContext):
     data = await state.get_data()
     user_id = callback.from_user.id
@@ -119,14 +131,16 @@ async def process_del_from_pizza(callback, state: FSMContext):
     await callback.answer(text=result)
     await state.finish()
 
+
 async def process_back_to_pizza_press(callback, state: FSMContext):
     await callback.message.edit_text(text='Оберіть піццу (натисніть, щоб дізнатись більше)',
                                      reply_markup=mkb.pizza_kb)
     await state.finish()
 
+
 async def process_steak_press(callback):
     await callback.message.edit_text(text='Оберіть стейк (натисніть, щоб дізнатись більше)',
-        reply_markup=mkb.steak_kb)
+                                     reply_markup=mkb.steak_kb)
     await callback.answer()
 
 
@@ -136,8 +150,8 @@ async def process_choice_steak(callback, state: FSMContext):
     await Order.steak.set()
     await state.update_data(steak=chosen_steak)
     base = sql.connect('menu.db')
-    cur = base.cursor()
-    steak_info = cur.execute("SELECT * FROM menu WHERE name = ?", (chosen_steak,)).fetchone()
+    curs1 = base.cursor()
+    steak_info = curs1.execute("SELECT * FROM menu WHERE name = ?", (chosen_steak,)).fetchone()
     await callback.message.answer_photo(steak_info[0])
     await callback.message.answer(text=f'{steak_info[2]}\n{steak_info[3]}\n{steak_info[-1]}',
                                   reply_markup=mkb.add_or_back_kb)
@@ -145,6 +159,7 @@ async def process_choice_steak(callback, state: FSMContext):
     cur.close()
     base.close()
     await Order.next()
+
 
 async def process_add_to_steak(callback, state: FSMContext):
     data = await state.get_data()
@@ -163,6 +178,7 @@ async def process_add_to_steak(callback, state: FSMContext):
     await callback.answer(text=result)
     await state.finish()
 
+
 async def process_del_from_steak(callback, state: FSMContext):
     data = await state.get_data()
     user_id = callback.from_user.id
@@ -175,10 +191,12 @@ async def process_del_from_steak(callback, state: FSMContext):
     await callback.answer(text=result)
     await state.finish()
 
+
 async def process_back_to_steak_press(callback, state: FSMContext):
     await callback.message.edit_text(text='Оберіть стейк (натисніть, щоб дізнатись більше)',
                                      reply_markup=mkb.steak_kb)
     await state.finish()
+
 
 async def process_to_menu_press(callback, state: FSMContext):
     await state.finish()
@@ -193,11 +211,17 @@ async def process_check_order_press(callback):
 
 
 async def make_order_press(callback):
-    await callback.message.edit_text(text=f"Оберіть спосіб доставки\n"
-                                          f"{LEXICON_UA['/about']}",
-                                     reply_markup=mkb.delivery_type)
-    await callback.answer()
-    await Order.delivery_type.set()
+    result = order_process.check_order(callback.from_user.id)
+    if 'СУМА ЗАМОВЛЕННЯ: None UAH' in result:
+        await callback.message.edit_text(text="Спочатку додайте товари до корзини",
+                                         reply_markup=mkb.menu_kb)
+        await callback.answer()
+    else:
+        await callback.message.edit_text(text=f"Оберіть спосіб доставки\n"
+                                              f"{LEXICON_UA['/about']}",
+                                         reply_markup=mkb.delivery_type)
+        await callback.answer()
+        await Order.delivery_type.set()
 
 
 async def process_delivery_type(callback, state: FSMContext):
@@ -219,27 +243,68 @@ async def process_delivery_time(callback, state: FSMContext):
 
 async def process_online_payment(callback, state: FSMContext):
     await state.update_data(payment_type=callback.data)
-    data = await state.get_data()
-    await callback.message.edit_text(text='Online...')
-    await callback.answer(data['payment_type'])
+    await callback.message.edit_text(text=f'ONLINE PAYMENT\nЯкщо ви маєте що додати або відредагувати,'
+                                          'напишіть це тут\n(або відправте будь-який символ, якщо все окей)\n'
+                                          'Ви перейдете до платежу')
+    await callback.answer()
     await Order.next()
 
 
 async def process_offline_payment(callback, state: FSMContext):
     await state.update_data(payment_type=callback.data)
-    data = await state.get_data()
     await callback.message.edit_text(text='OFFLINE PAYMENT\nЯкщо ви маєте що додати або відредагувати,'
-                                 'напишіть це тут\n(або відправте будь-що, якщо все окей)')
-    await callback.answer(data['payment_type'])
+                                          'напишіть це тут\n(або відправте будь-що, якщо все окей)')
+    await callback.answer()
     await Order.next()
 
 
 async def process_details(message, state: FSMContext):
+    user_cart = order_process.check_order(message.from_user.id)
+    order_process.delete_confirmed_order(message.from_user.id)
     await state.update_data(details=message.text)
     data = await state.get_data()
-    await message.answer(text=f"Замовлення прийнято в обробку\n{data}")
-    await state.finish()
+    await message.answer(text=f"Замовлення прийнято в обробку\n"
+                              f"Ми зв'яжемось з вами")
+    env = Env()
+    env.read_env(r'C:\Users\snapk\PycharmProjects\Alpha\cafe_delievery_bot\.env')
+    payment_token = env("PAYMENT_TOKEN")
+    bot = Bot(token=env("BOT_TOKEN"))
+    admin_ids = _isadmin()
+    user_info = sql_select_user(message.from_user.id)
+    user_info = f"ЗАМОВЛЕННЯ:\nІм'я: {user_info[1]}\nТелефон: {user_info[2]}\n" \
+                f"Адреса: {user_info[3]}\n"
 
+    data = f"Спосіб доставки: {data['delivery_type']}\n" \
+           f"Час доставки: {data['delivery_time']}\n" \
+           f"Тип сплати: {data['payment_type']}\n" \
+           f"Деталі: {data['details']}"
+
+    for i in admin_ids:
+        await bot.send_message(i, user_info + user_cart + '\n'
+                               + data)
+
+    await bot.close()
+    data = await state.get_data()
+    user_sum = int(user_cart[:user_cart.find(' UAH')].split()[2])
+    if data['payment_type'] == 'pay_online':
+        if user_sum < 500:
+            user_sum += 120
+        final_sum = [LabeledPrice(amount=user_sum * 100, label='Сума')]
+        await bot.send_invoice(chat_id=message.from_user.id,
+                               title='СПЛАТИТИ ЗАМОВЛЕННЯ',
+                               description="Доставка їжі Cafe Delivery",
+                               payload='payload',
+                               provider_token=payment_token,
+                               currency='uah',
+                               prices=final_sum)
+        await Order.next()
+        await bot.close()
+    else:
+        await state.finish()
+
+
+async def is_payed():
+    pass
 
 
 def register_user_handlers(dp):
@@ -270,13 +335,14 @@ def register_user_handlers(dp):
     dp.register_callback_query_handler(process_check_order_press, text='check_order')
     dp.register_callback_query_handler(make_order_press, text='make_order')
     dp.register_callback_query_handler(process_delivery_type, text=['self_delivery',
-                                                                     'courier_delivery'],
+                                                                    'courier_delivery'],
                                        state=Order.delivery_type)
     dp.register_callback_query_handler(process_delivery_time, text=['asap_time',
                                                                     'another_time'],
                                        state=Order.delivery_time)
     dp.register_callback_query_handler(process_online_payment, text='pay_online', state=Order.payment_type)
     dp.register_callback_query_handler(process_offline_payment, text=['pay_offline_cash',
-                                                                     'pay_offline_card'],
+                                                                      'pay_offline_card'],
                                        state=Order.payment_type)
     dp.register_message_handler(process_details, state=Order.details)
+    dp.register_message_handler(is_payed, state=Order.payed)

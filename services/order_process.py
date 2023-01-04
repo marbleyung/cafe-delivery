@@ -1,19 +1,19 @@
 import sqlite3 as sql
-from datetime import datetime
 
-# def delete_old_orders():
-#     base = sql.connect(r'C:\Users\snapk\PycharmProjects\Alpha\cafe_delievery_bot\orders.db')
-#     cur = base.cursor()
-#     try:
-#         cur.execute("DELETE FROM orders WHERE order_time - ? < -1800", (datetime.now().timestamp(), ))
-#         result = 'Deleted'
-#     except Exception as e:
-#         result = f"{e}"
-#     finally:
-#         cur.close()
-#         base.commit()
-#         base.close()
-#     return result
+
+def delete_confirmed_order(data):
+    base = sql.connect(r'C:\Users\snapk\PycharmProjects\Alpha\cafe_delievery_bot\orders.db')
+    cur = base.cursor()
+    try:
+        cur.execute("DELETE FROM orders WHERE user_id = ?", (data,))
+        result = 'Deleted'
+    except Exception as e:
+        result = f"{e}"
+    finally:
+        cur.close()
+        base.commit()
+        base.close()
+    return result
 
 
 def add_to_order(data):
@@ -57,10 +57,8 @@ def check_howmany_dish_in_order(data):
     try:
         result = cur.execute("SELECT count(user_id) FROM orders WHERE user_id = ? AND "
                              "dish = ?", data).fetchall()
-        print(data)
-    except:
-        result = 'Error'
-        print("Except block")
+    except Exception as e:
+        result = e
     finally:
         cur.close()
         base.close()
@@ -71,10 +69,10 @@ def check_order(data):
     base = sql.connect(r'C:\Users\snapk\PycharmProjects\Alpha\cafe_delievery_bot\orders.db')
     cur = base.cursor()
     try:
-        total = cur.execute("SELECT SUM(price) FROM orders WHERE user_id = ?", (data, )).fetchall()[0][0]
+        total = cur.execute("SELECT SUM(price) FROM orders WHERE user_id = ?", (data,)).fetchall()[0][0]
         total = f"СУМА ЗАМОВЛЕННЯ: {total} UAH"
         result = cur.execute("SELECT dish FROM orders WHERE user_id = ?",
-                             (data, )).fetchall()
+                             (data,)).fetchall()
         result = [i[0] for i in result]
         amount = []
         for i in result:
