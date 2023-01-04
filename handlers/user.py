@@ -68,10 +68,10 @@ async def process_del_command(message, state: FSMContext):
 
 async def process_m_command(message, state: FSMContext):
     await state.finish()
+
     for r in cur.execute('SELECT photo, category FROM menu GROUP BY category').fetchall():
         await message.answer_photo(r[0], f'{r[1].upper()}')
     await message.answer(text="Оберіть страву, яку хочете скуштувати", reply_markup=mkb.menu_kb)
-
 
 async def process_about_command(message, state: FSMContext):
     await message.answer(LEXICON_UA['/about'])
@@ -96,7 +96,7 @@ async def process_choice_pizza(callback, state: FSMContext):
     await callback.message.answer(text=f'{pizza_info[2]}\n{pizza_info[3]}\n{pizza_info[-1]}',
                                   reply_markup=mkb.add_or_back_kb)
     await callback.answer()
-    cur.close()
+    curs.close()
     base.close()
     await Order.next()
 
@@ -156,7 +156,7 @@ async def process_choice_steak(callback, state: FSMContext):
     await callback.message.answer(text=f'{steak_info[2]}\n{steak_info[3]}\n{steak_info[-1]}',
                                   reply_markup=mkb.add_or_back_kb)
     await callback.answer()
-    cur.close()
+    curs1.close()
     base.close()
     await Order.next()
 
@@ -270,6 +270,12 @@ async def process_details(message, state: FSMContext):
     payment_token = env("PAYMENT_TOKEN")
     bot = Bot(token=env("BOT_TOKEN"))
     admin_ids = _isadmin()
+    data = await state.get_data()
+
+    user_sum = int(user_cart[:user_cart.find(' UAH')].split()[2])
+    if user_sum < 500 and data['delivery_type'] == 'courier_delivery':
+        user_sum += 120
+    user_cart = str(user_cart[:user_cart.find(":") + 1]) + ' ' + str(user_sum) + ' UAH'
     user_info = sql_select_user(message.from_user.id)
     user_info = f"ЗАМОВЛЕННЯ:\nІм'я: {user_info[1]}\nТелефон: {user_info[2]}\n" \
                 f"Адреса: {user_info[3]}\n"
@@ -285,10 +291,7 @@ async def process_details(message, state: FSMContext):
 
     await bot.close()
     data = await state.get_data()
-    user_sum = int(user_cart[:user_cart.find(' UAH')].split()[2])
     if data['payment_type'] == 'pay_online':
-        if user_sum < 500:
-            user_sum += 120
         final_sum = [LabeledPrice(amount=user_sum * 100, label='Сума')]
         await bot.send_invoice(chat_id=message.from_user.id,
                                title='СПЛАТИТИ ЗАМОВЛЕННЯ',
@@ -299,6 +302,7 @@ async def process_details(message, state: FSMContext):
                                prices=final_sum)
         await Order.next()
         await bot.close()
+        await state.finish()
     else:
         await state.finish()
 
