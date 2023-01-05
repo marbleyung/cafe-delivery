@@ -1,6 +1,7 @@
 from aiogram import Dispatcher, types
 
-async def set_main_menu(dp):
+
+async def set_main_menu(dp: Dispatcher):
     main_menu_commands = [
         types.BotCommand(command='/help', description='Help'),
         types.BotCommand(command='/cart', description='Cart'),

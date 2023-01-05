@@ -1,7 +1,6 @@
 import sqlite3 as sql
 from aiogram import Bot
 from aiogram.types import LabeledPrice, PreCheckoutQuery, ContentType
-from aiogram.dispatcher.filters import ContentTypeFilter
 from environs import Env
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -25,6 +24,7 @@ class Order(StatesGroup):
     delivery_time = State()
     payment_type = State()
     details = State()
+
 
 async def process_help_command(message, state: FSMContext):
     await message.answer(f"{LEXICON_EN['/help']}\n"
@@ -70,6 +70,7 @@ async def process_m_command(message, state: FSMContext):
     for r in cur.execute('SELECT photo, category FROM menu GROUP BY category').fetchall():
         await message.answer_photo(r[0], f'{r[1].upper()}')
     await message.answer(text="Our menu", reply_markup=mkb.menu_kb)
+
 
 async def process_about_command(message, state: FSMContext):
     await message.answer(LEXICON_UA['/about'])
@@ -258,7 +259,6 @@ async def process_details(message, state: FSMContext):
     user_cart = order_process.check_order(message.from_user.id)
     order_process.delete_confirmed_order(message.from_user.id)
     await state.update_data(details=message.text)
-    data = await state.get_data()
     await message.answer(text=f"Order in process\n"
                               f"We'll call you")
     env = Env()
@@ -316,7 +316,6 @@ async def pre_checkout_query(precheckoutquery: PreCheckoutQuery):
 
 
 async def successful_payment(message):
-    a = message.successful_payment.to_python()
     msg = f'Thank you! {message.successful_payment.total_amount // 100} ' \
           f'{message.successful_payment.currency}'
     env = Env()
@@ -332,6 +331,7 @@ async def successful_payment(message):
                                        f"{message.successful_payment.currency}✅")
     await message.answer(text=msg)
     await bot.close()
+
 
 def register_user_handlers(dp):
     dp.register_message_handler(process_help_command, commands='help', state='*')

@@ -6,17 +6,19 @@ from database.database import sql_add_user
 from aiogram.dispatcher.filters import Text
 from lexicon.lexicon import LEXICON_UA
 
+
 class FSMuser(StatesGroup):
     name = State()
     phone = State()
     address = State()
     is_correct = State()
 
+
 async def user_register(message: types.Message):
-    await message.answer(text = 'Hello! Please, register first\n'
-                                'Just enter your name, phone number and address\n'
-                                'The bot will remember your data\n'
-                                '/esc to escape from here if you are ALREADY REGISTERED')
+    await message.answer(text='Hello! Please, register first\n'
+                              'Just enter your name, phone number and address\n'
+                              'The bot will remember your data\n'
+                              '/esc to escape from here if you are ALREADY REGISTERED')
     await message.answer("Enter your name")
     await FSMuser.name.set()
 
@@ -52,7 +54,7 @@ async def is_correct_yes(callback, state: FSMContext):
     if result == "You have been already registered.\nPlease, enter /esc and use bot :)":
         await callback.answer(result, show_alert=True)
     else:
-        await callback.message.edit_text("Great! Start with \m!\n"
+        await callback.message.edit_text("Great! Start with /m!\n"
                                          "If you need to change your data, enter /del and then /start")
         await state.finish()
 
@@ -76,4 +78,3 @@ def register_reg_handlers(dp):
     dp.register_message_handler(get_address, state=FSMuser.address)
     dp.register_callback_query_handler(is_correct_yes, state=FSMuser.is_correct, text='yes')
     dp.register_callback_query_handler(is_correct_no, state=FSMuser.is_correct, text='no')
-

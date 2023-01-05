@@ -6,6 +6,8 @@ from environs import Env
 from database import database
 from keyboards.admin_kb import admin_keyboard, admin_back_keyboard, admin_edit_keyboard
 from asyncio import sleep
+
+
 @dataclass
 class FSMadmin(StatesGroup):
     mass_message = State()
@@ -158,9 +160,9 @@ async def set_new_text_element(message, state: FSMContext):
 
 
 async def admin_delete(callback):
-    await callback.message.edit_text(text = 'If you want to delete a dish, enter its name\n'
-                                            'Margherita to delete pizza Margherita\n'
-                                            'Quattro Formaggi to delete pizza Quattro Formaggi',
+    await callback.message.edit_text(text='If you want to delete a dish, enter its name\n'
+                                          'Margherita to delete pizza Margherita\n'
+                                          'Quattro Formaggi to delete pizza Quattro Formaggi',
                                      reply_markup=admin_back_keyboard)
     await callback.answer()
     await FSMadmin.name_to_delete.set()
