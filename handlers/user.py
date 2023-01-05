@@ -1,7 +1,7 @@
 import sqlite3 as sql
 from aiogram import Bot
-from aiogram.types import LabeledPrice
-
+from aiogram.types import LabeledPrice, PreCheckoutQuery, ContentType
+from aiogram.dispatcher.filters import ContentTypeFilter
 from environs import Env
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -25,8 +25,6 @@ class Order(StatesGroup):
     delivery_time = State()
     payment_type = State()
     details = State()
-    payed = State()
-
 
 async def process_help_command(message, state: FSMContext):
     await message.answer(f"{LEXICON_EN['/help']}\n"
@@ -297,17 +295,43 @@ async def process_details(message, state: FSMContext):
                                payload='payload',
                                provider_token=payment_token,
                                currency='uah',
-                               prices=final_sum)
-        await Order.next()
-        await bot.close()
+                               prices=final_sum,
+                               max_tip_amount=10000,
+                               suggested_tip_amounts=[1000, 2000, 5000, 10000],
+                               need_name=False,
+                               need_phone_number=False,
+                               need_email=False)
         await state.finish()
+        await bot.close()
     else:
         await state.finish()
 
 
-async def is_payed():
-    pass
+async def pre_checkout_query(precheckoutquery: PreCheckoutQuery):
+    env = Env()
+    env.read_env(r'C:\Users\snapk\PycharmProjects\Alpha\cafe_delievery_bot\.env')
+    bot = Bot(token=env("BOT_TOKEN"))
+    await bot.answer_pre_checkout_query(precheckoutquery.id, ok=True)
+    await bot.close()
 
+
+async def successful_payment(message):
+    a = message.successful_payment.to_python()
+    msg = f'Thank you! {message.successful_payment.total_amount // 100} ' \
+          f'{message.successful_payment.currency}'
+    env = Env()
+    env.read_env(r'C:\Users\snapk\PycharmProjects\Alpha\cafe_delievery_bot\.env')
+    bot = Bot(token=env("BOT_TOKEN"))
+    admin_ids = _isadmin()
+    user_info = sql_select_user(message.from_user.id)
+    user_info = f"ORDER:\nName: {user_info[1]}\nPhone: {user_info[2]}\n" \
+                f"Address: {user_info[3]}\n"
+    for i in admin_ids:
+        await bot.send_message(i, text=f"✅PAYED FOR {user_info}\n"
+                                       f"{message.successful_payment.total_amount // 100}"
+                                       f"{message.successful_payment.currency}✅")
+    await message.answer(text=msg)
+    await bot.close()
 
 def register_user_handlers(dp):
     dp.register_message_handler(process_help_command, commands='help', state='*')
@@ -347,4 +371,6 @@ def register_user_handlers(dp):
                                                                       'pay_offline_card'],
                                        state=Order.payment_type)
     dp.register_message_handler(process_details, state=Order.details)
-    dp.register_message_handler(is_payed, state=Order.payed)
+    dp.register_pre_checkout_query_handler(pre_checkout_query)
+    dp.register_message_handler(successful_payment,
+                                content_types=ContentType.SUCCESSFUL_PAYMENT)
