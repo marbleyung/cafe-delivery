@@ -70,7 +70,7 @@ def check_order(data):
     cur = base.cursor()
     try:
         total = cur.execute("SELECT SUM(price) FROM orders WHERE user_id = ?", (data,)).fetchall()[0][0]
-        total = f"СУМА ЗАМОВЛЕННЯ: {total} UAH"
+        total = f"TOTAL SUM: {total} UAH"
         result = cur.execute("SELECT dish FROM orders WHERE user_id = ?",
                              (data,)).fetchall()
         result = [i[0] for i in result]
@@ -83,7 +83,7 @@ def check_order(data):
         for i in amount:
             answer += str(i) + '\n'
         answer = answer.replace('[', '').replace(']', '')
-        answer += '\nЩоб видалити страву, знайдіть її в меню і натисніть "видалити"'.upper()
+        answer += '\nTo delete item from cart, find it in menu and press "delete"'.upper()
     except Exception as e:
         amount = e
         total = None

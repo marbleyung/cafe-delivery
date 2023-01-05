@@ -13,32 +13,33 @@ class FSMuser(StatesGroup):
     is_correct = State()
 
 async def user_register(message: types.Message):
-    await message.answer('Вітаємо! Зареєструйтесь, будь ласка.\nЦе не забере багато часу.\n'
-                         'Просто введіть своє імя, номер телефону та адресу.\nЦе потрібно для того, щоби бот запам`ятав вас.\n'
-                         '/esc - якщо ви потрапили сюда помилково')
-    await message.answer("Будь ласка, введіть ваше ім'я")
+    await message.answer(text = 'Hello! Please, register first\n'
+                                'Just enter your name, phone number and address\n'
+                                'The bot will remember your data\n'
+                                '/esc to escape from here if you are ALREADY REGISTERED')
+    await message.answer("Enter your name")
     await FSMuser.name.set()
 
 
 async def get_name(message: types.Message, state: FSMContext):
     await state.update_data(name=message.text.title())
-    await message.answer("Будь ласка, введіть ваш номер телефону")
+    await message.answer("Enter your phone number")
     await FSMuser.next()
 
 
 async def get_phone_number(message: types.Message, state: FSMContext):
     await state.update_data(phone=message.text)
-    await message.answer("Чудово! Залишилось додати адресу.")
+    await message.answer("Great! And now enter your address.")
     await FSMuser.next()
 
 
 async def get_address(message: types.Message, state: FSMContext):
     await state.update_data(address=message.text)
     data = await state.get_data()
-    await message.answer(f"Ми майже зареєстрували вас, {data['name']}!\n"
-                         f"Ваш номер телефону: {data['phone']}\n"
-                         f"Ваша адреса: {data['address']}\nБудь ласка, передивіться дані уважно.\n"
-                         f"Чи правильно введено дані?", reply_markup=yes_no_kb)
+    await message.answer(f"We almost register you, {data['name']}!\n"
+                         f"Your phone number: {data['phone']}\n"
+                         f"Your address: {data['address']}\nPlease, check your data.\n"
+                         f"Is it correct?", reply_markup=yes_no_kb)
 
     await FSMuser.next()
 
@@ -48,17 +49,17 @@ async def is_correct_yes(callback, state: FSMContext):
     data = list(data.values())
     data.insert(0, int(callback.from_user.id))
     result = sql_add_user(data)
-    if result == 'Ви вже були успішно зареєстровані.\nБудь ласка, пропишіть /esc і починайте користуватись ботом':
+    if result == "You have been already registered.\nPlease, enter /esc and use bot :)":
         await callback.answer(result, show_alert=True)
     else:
-        await callback.message.edit_text("Чудово! В вашому розпорядженні цілий арсенал команд!\nПочніть з /m\n"
-                                         "Якщо колись вам потрібно буде змінити дані, введіть /start")
+        await callback.message.edit_text("Great! Start with \m!\n"
+                                         "If you need to change your data, enter /del and then /start")
         await state.finish()
 
 
 async def is_correct_no(callback, state: FSMContext):
     await user_register(message=callback.message)
-    await callback.message.edit_text('Введіть дані заново')
+    await callback.message.edit_text('Re-enter your data')
 
 
 async def cancel(message: types.Message, state: FSMContext):

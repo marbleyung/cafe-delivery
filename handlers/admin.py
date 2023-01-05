@@ -34,11 +34,11 @@ def _isadmin():
 async def send_message_to_everyone(message):
     admin_ids = _isadmin()
     if str(message.from_user.id) in admin_ids:
-        await message.answer(text='Введіть повідомлення, яке отримають всі користувачі',
+        await message.answer(text='Type the message that will be sent to all users',
                              reply_markup=admin_back_keyboard)
         await FSMadmin.mass_message.set()
     else:
-        await message.answer(text='Упс, ця команда не для вас')
+        await message.answer(text='Whoops, this command is not for you')
 
 
 async def mass_message(message, state: FSMContext):
@@ -59,9 +59,9 @@ async def mass_message(message, state: FSMContext):
 async def load_admin_panel(message):
     admin_ids = _isadmin()
     if str(message.from_user.id) in admin_ids:
-        await message.answer(text='Вітаємо!', reply_markup=admin_keyboard)
+        await message.answer(text='Hello!', reply_markup=admin_keyboard)
     else:
-        await message.answer(text='Упс, ця команда не для вас')
+        await message.answer(text='Whoops, this command is not for you')
 
 
 async def admin_get_menu(callback):
@@ -78,20 +78,20 @@ async def admin_get_advanced_menu(callback):
 
 
 async def admin_load(callback):
-    await callback.message.edit_text(text='Якщо ви хочете додати нову страву, завантажте фото\n',
+    await callback.message.edit_text(text='If you want to add a new dish, load a photo\n',
                                      reply_markup=admin_back_keyboard)
     await callback.answer()
     await FSMadmin.photo.set()
 
 
 async def admin_edit(callback):
-    await callback.message.edit_text(text="Введіть назву страви, яку потрібно змінити",
+    await callback.message.edit_text(text="Enter the name of the dish that is has to be edited",
                                      reply_markup=admin_back_keyboard)
     await FSMadmin.select_in_db.set()
 
 
 async def admin_edit_photo(callback):
-    await callback.message.edit_text(text='Введіть назву страви, фото якої потрібно змінити',
+    await callback.message.edit_text(text='Enter the name of the dish, which photo is has to be edited',
                                      reply_markup=admin_back_keyboard)
     await FSMadmin.select_in_db_photo.set()
 
@@ -100,9 +100,9 @@ async def select_dish_photo(message, state: FSMContext):
     tmp = message.text.title()
     await state.update_data(select_in_db_photo=tmp)
     result = database.sql_select_dish(tmp)
-    if result == 'Елемент знайдено. Що редагуємо?':
+    if result == "Item has been found. What is to edit?":
         await FSMadmin.next()
-        await message.answer(text="Елемент знайдено. Завантажте нове фото",
+        await message.answer(text=result,
                              reply_markup=admin_back_keyboard)
     else:
         await message.answer(text=result, reply_markup=admin_keyboard)
@@ -123,7 +123,7 @@ async def select_dish(message, state: FSMContext):
     tmp = message.text.title()
     await state.update_data(select_in_db=tmp)
     result = database.sql_select_dish(tmp)
-    if result == 'Елемент знайдено. Що редагуємо?':
+    if result == "Item has been found. What is to edit?":
         await FSMadmin.next()
         await message.answer(text=result, reply_markup=admin_edit_keyboard)
     else:
@@ -133,7 +133,7 @@ async def select_dish(message, state: FSMContext):
 
 async def edit_text_element(callback, state: FSMContext):
     await state.update_data(edit_text_element=callback.data.split('_')[1])
-    await callback.message.edit_text(text='Введіть нове значення', reply_markup=admin_back_keyboard)
+    await callback.message.edit_text(text='Enter new value', reply_markup=admin_back_keyboard)
     await callback.answer()
     await FSMadmin.next()
 
@@ -158,9 +158,9 @@ async def set_new_text_element(message, state: FSMContext):
 
 
 async def admin_delete(callback):
-    await callback.message.edit_text(text='Якщо ви хочете видалити страву, введіть її назву\n'
-                                          'Наприклад, Margherita для видалення відповідної піци,\n'
-                                          'Quattro Formaggi для видалення відповідної піци тощо.\n',
+    await callback.message.edit_text(text = 'If you want to delete a dish, enter its name\n'
+                                            'Margherita to delete pizza Margherita\n'
+                                            'Quattro Formaggi to delete pizza Quattro Formaggi',
                                      reply_markup=admin_back_keyboard)
     await callback.answer()
     await FSMadmin.name_to_delete.set()
@@ -178,38 +178,40 @@ async def del_dish(message: types.Message, state: FSMContext):
 async def load_photo(message: types.Message, state: FSMContext):
     await state.update_data(photo=message.photo[0].file_id)
     await FSMadmin.next()
-    await message.answer('До якої категорії відноситься страва?')
+    await message.answer('What is the category of the dish?')
 
 
 async def load_category(message: types.Message, state: FSMContext):
     await state.update_data(category=message.text.lower())
     await FSMadmin.next()
-    await message.answer('Як називається страва?')
+    await message.answer('What is the name of the dish?')
 
 
 async def load_name(message: types.Message, state: FSMContext):
     await state.update_data(name=message.text.title())
     await FSMadmin.next()
-    await message.answer('Будь ласка, вкажіть інгредієнти, вагу та калорійність (опціонально)')
+    await message.answer('Please, enter weight, calories and ingredients')
 
 
 async def load_description(message: types.Message, state: FSMContext):
     await state.update_data(description=message.text)
     await FSMadmin.next()
-    await message.answer('Введіть ціну (ціле число)')
+    await message.answer('Enter the price (integer)')
 
 
 async def load_price(message: types.Message, state: FSMContext):
     await state.update_data(price=f"{message.text} UAH")
     data = await state.get_data()
     database.sql_add_dish(data)
-    await message.answer(text='Готово! Страву додано', reply_markup=admin_keyboard)
+    await message.answer(text='Done! The dish has been added',
+                         reply_markup=admin_keyboard)
     await state.finish()
 
 
 async def admin_back(callback, state: FSMContext):
     await state.finish()
-    await callback.message.edit_text(text='Вітаємо!', reply_markup=admin_keyboard)
+    await callback.message.edit_text(text='Hello!',
+                                     reply_markup=admin_keyboard)
 
 
 async def admin_quit(callback, state: FSMContext):
