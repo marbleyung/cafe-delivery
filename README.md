@@ -1,4 +1,5 @@
 # cafe-delivery-bot
+! Unfortunately, I can't deploy this project on the server because of lack of money, so it only can be hosted from my laptop atm.
 This is my first project - Telegram bot for  delivery service of small restaraunt. 
 It has been made with Python and aiogram.
 What can this bot do?
